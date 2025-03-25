@@ -78,7 +78,18 @@ gsp_sp_op_result GSP_SP_OP(graph const& g) {
 
 		dfs.emplace(root, -1); // we will never actually iterate over the root; we return from the bicomp immediately before backing into the root, since we're done then
 		dfs.emplace(next, 0); // force the first edge of the DFS
-		bool fake_edge = true; // keep track of whether the edge we added was fake or not; we'll check this at the end of the processing of this bicomp
+
+		bool fake_edge = false; // keep track of whether the edge we added was fake or not; we'll check this at the end of the processing of this bicomp
+		if (!retval.sp_reason) { // we only need to care about fake edges if the bicomps form a chain (otherwise there will never be a fake edge)
+			fake_edge = true;
+			for (int u1 : g.adjLists[next]) { // iterate over the adj list of the tree child of the root to check if the first edge in the DFS tree doesn't exist (as it might when the bicomps form a chain)
+										  // over the whole algorithm this takes O(|E|) time, we are guaranteed to run this loop at most once per vertex (since we always run it on a non-root-vertex of a bicomp, and when bicomps overlap exactly one of those bicomps do not have a root vertex on the overlap)
+				if (u1 == root) {
+					fake_edge = false;
+					break;
+				}
+			}
+		}
 
 		dfs_no[root] = 1;
 		parent[root] = -1;
@@ -266,14 +277,6 @@ gsp_sp_op_result GSP_SP_OP(graph const& g) {
 								ext_boundary.emplace_back(v, w);
 							}
 						} // if the vertex has two children, we don't add any edges to the exterior boundary, and if it has more than two there's a K23 which we'd've already found
-					}
-
-					for (int u1 : g.adjLists[next]) { // iterate over the adj list of the tree child of the root an additional time to check if the first edge in the DFS tree doesn't exist (as it might when the bicomps form a chain)
-													  // over the whole algorithm this takes O(|E|) time, we are guaranteed to run this loop at most once per vertex (since we always run it on a non-root-vertex of a bicomp, and when bicomps overlap exactly one of those bicomps do not have a root vertex on the overlap)
-						if (u1 == root) {
-							fake_edge = false;
-							break;
-						}
 					}
 
 					if (v == root) { // there will never be more than one tree edge going out of the root, otherwise the root would be a cut vertex (we assume G is biconnected in SP-OP)
