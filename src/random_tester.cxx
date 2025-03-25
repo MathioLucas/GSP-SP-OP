@@ -6,7 +6,7 @@
 #include <random>
 #include <limits>
 
-int main(int argc, char * argv[]) {
+int main() {
 	std::random_device rd;
 	std::default_random_engine re{rd()};
 
