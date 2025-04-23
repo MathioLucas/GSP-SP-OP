@@ -61,7 +61,7 @@ The parameters are as follows:
 * `lC` is the length of all of these cycles (must be at least 3)
 * `nK` is the number of complete subgraphs in the generated output
 * `lK` is the size of these complete subgraphs (must be at least 3)
-* `three_egdes` is whether to connect each generated subgraph to the rest with three rather than two edges.
+* `three_egdes` is whether to connect each generated subgraph to the rest with three rather than two edges. A "no" is represented by 0, and anything else is a "yes".
 * `seed` is the seed to be passed to the (C-style) random number generator. If not specified, it will use a "random" seed based off the current time.
 
 It directly returns a `graph`, which can then be passed to `GSP_SP_OP`. Unlike the previous version, it does not accept command line arguments, and all arguments are instead passed to the above function. (This was done to make it easier to generate multiple graphs in one run of a test program).
