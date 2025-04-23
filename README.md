@@ -48,7 +48,7 @@ recreate_random_failed_test.cxx takes as command line arguments the parameters o
 ## Graph generator
 In addition to the three demo files, I've also provided a file `GraphGenerator.hxx`, which may be included to generate random `graph`s for testing the implementation on. It defines a single function `graph generate_graph(long nC, long lC, long nK, long lK, long three_edges, long seed)`. The algorithm this function uses to generate a graph is equivalent to the following:
 * First, generate `nC` cycle subgraphs on `lC` vertices and `nK` complete subgraphs on `lK` vertices.
-* Label them from `0` to `nC * lC + nK * lK - 1`. Shuffle the labels.
+* Label the vertices of these subgraphs from `0` to `nC * lC + nK * lK - 1`. Shuffle the labels.
 * Randomly order all of these subgraps and number them from `1` to `nC + nK`.
 * For `i` from `2` to `nC + nK`:
   * Choose a random subgraph from the `1`st to the `i-1`th.
