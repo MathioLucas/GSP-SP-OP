@@ -45,6 +45,27 @@ random_tester.cxx will generate 100000 random moderately-sized graphs (~400 vert
 ### recreate_random_failed_test.cxx
 recreate_random_failed_test.cxx takes as command line arguments the parameters output by random_tester.cxx, and uses them to recreate the test case that failed. It re-runs the implementation on the given failed test case, and re-authenticates.
 
+## Graph generator
+In addition to the three demo files, I've also provided a file `GraphGenerator.hxx`, which may be included to generate random `graph`s for testing the implementation on. It defines a single function `graph generate_graph(long nC, long lC, long nK, long lK, long three_edges, long seed)`. The algorithm this function uses to generate a graph is equivalent to the following:
+* First, generate `nC` cycle subgraphs on `lC` vertices and `nK` complete subgraphs on `lK` vertices.
+* Label them from `0` to `nC * lC + nK * lK - 1`. Shuffle the labels.
+* Randomly order all of these subgraps and number them from `1` to `nC + nK`.
+* For `i` from `2` to `nC + nK`:
+  * Choose a random subgraph from the `1`st to the `i-1`th.
+  * Select two random distinct vertices in the `i`th subgraph (or three, if `three_edges` is true).
+  * Connect each of these vertices to a randomly selected vertex in the chosen subgraph with a single edge, ensuring the two (or three) vertices such selected are distinct as well.
+* Shuffle the order of every edge in the adjacency lists.
+
+The parameters are as follows:
+* `nC` is the number of cycle subgraphs in the generated output
+* `lC` is the length of all of these cycles (must be at least 3)
+* `nK` is the number of complete subgraphs in the generated output
+* `lK` is the size of these complete subgraphs (must be at least 3)
+* `three_egdes` is whether to connect each generated subgraph to the rest with three rather than two edges.
+* `seed` is the seed to be passed to the (C-style) random number generator. If not specified, it will use a "random" seed based off the current time.
+
+It directly returns a `graph`, which can then be passed to `GSP_SP_OP`. Unlike the previous version, it does not accept command line arguments, and all arguments are instead passed to the above function. (This was done to make it easier to generate multiple graphs in one run of a test program).
+
 ## Logging
 Some command-line options can be given to the compiler when the code is compiled to affect the implementation's logging behaviour, for debugging purposes:
 * `-D__LIGHT_LOGGING__` will cause a minimal amount of extra information to be printed to standard output, which takes constant time to print.
