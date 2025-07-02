@@ -1,0 +1,346 @@
+#ifndef GRAPH_IO_ENHANCED_HXX
+#define GRAPH_IO_ENHANCED_HXX
+
+#include "graph.hxx"
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+
+/**
+ * Enhanced Graph I/O - Multiple Format Support
+ * Place this file in: src/graph_io_enhanced.hxx
+ * 
+ * Supports: TXT (original), JSON, GraphML, Adjacency Matrix
+ */
+
+class GraphIOEnhanced {
+public:
+    // File format detection
+    enum class Format {
+        TXT,      // Original format
+        JSON,     // JSON format
+        GRAPHML,  // GraphML XML format
+        ADJMATRIX // Adjacency matrix format
+    };
+    
+    static Format detect_format(const std::string& filename) {
+        std::string ext = filename.substr(filename.find_last_of('.') + 1);
+        if (ext == "json") return Format::JSON;
+        if (ext == "graphml" || ext == "xml") return Format::GRAPHML;
+        if (ext == "matrix" || ext == "adj") return Format::ADJMATRIX;
+        return Format::TXT; // Default
+    }
+    
+    // Universal graph loader
+    static bool load_graph(graph& g, const std::string& filename) {
+        Format fmt = detect_format(filename);
+        
+        switch (fmt) {
+            case Format::TXT:
+                return load_txt(g, filename);
+            case Format::JSON:
+                return load_json(g, filename);
+            case Format::GRAPHML:
+                return load_graphml(g, filename);
+            case Format::ADJMATRIX:
+                return load_adjacency_matrix(g, filename);
+        }
+        return false;
+    }
+    
+    // Universal graph saver
+    static bool save_graph(const graph& g, const std::string& filename, Format fmt = Format::TXT) {
+        switch (fmt) {
+            case Format::TXT:
+                return save_txt(g, filename);
+            case Format::JSON:
+                return save_json(g, filename);
+            case Format::GRAPHML:
+                return save_graphml(g, filename);
+            case Format::ADJMATRIX:
+                return save_adjacency_matrix(g, filename);
+        }
+        return false;
+    }
+
+private:
+    
+    static bool load_txt(graph& g, const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return false;
+        
+        file >> g;
+        return true;
+    }
+    
+    static bool save_txt(const graph& g, const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) return false;
+        
+        int n = g.adjacency_list.size();
+        int edges = 0;
+        
+        
+        std::set<std::pair<int, int>> edge_set;
+        for (int i = 0; i < n; ++i) {
+            for (int neighbor : g.adjacency_list[i]) {
+                if (i < neighbor) { // Avoid duplicates
+                    edge_set.insert({i, neighbor});
+                }
+            }
+        }
+        
+        file << n << " " << edge_set.size() << "\n";
+        for (const auto& edge : edge_set) {
+            file << edge.first << " " << edge.second << "\n";
+        }
+        
+        return true;
+    }
+
+    static bool load_json(graph& g, const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return false;
+        
+        std::string line, content;
+        while (std::getline(file, line)) {
+            content += line;
+        }
+        
+      
+        size_t vertices_pos = content.find("\"vertices\":");
+        size_t adj_pos = content.find("\"adjacency_list\":");
+        
+        if (vertices_pos == std::string::npos || adj_pos == std::string::npos) {
+            return false;
+        }
+        
+        
+        int n = std::stoi(content.substr(vertices_pos + 11, content.find(',', vertices_pos) - vertices_pos - 11));
+        g.adjacency_list.resize(n);
+        
+    
+        size_t start = content.find('{', adj_pos) + 1;
+        size_t end = content.find('}', start);
+        std::string adj_content = content.substr(start, end - start);
+        
+        std::istringstream iss(adj_content);
+        std::string token;
+        int vertex = 0;
+        
+        while (std::getline(iss, token, '\n') && vertex < n) {
+            size_t bracket_start = token.find('[');
+            size_t bracket_end = token.find(']');
+            
+            if (bracket_start != std::string::npos && bracket_end != std::string::npos) {
+                std::string neighbors = token.substr(bracket_start + 1, bracket_end - bracket_start - 1);
+                std::istringstream neighbor_stream(neighbors);
+                std::string neighbor_str;
+                
+                while (std::getline(neighbor_stream, neighbor_str, ',')) {
+                    
+                    neighbor_str.erase(0, neighbor_str.find_first_not_of(" \t"));
+                    neighbor_str.erase(neighbor_str.find_last_not_of(" \t") + 1);
+                    
+                    if (!neighbor_str.empty()) {
+                        int neighbor = std::stoi(neighbor_str);
+                        g.adjacency_list[vertex].push_back(neighbor);
+                    }
+                }
+                vertex++;
+            }
+        }
+        
+        return true;
+    }
+    
+    static bool save_json(const graph& g, const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) return false;
+        
+        int n = g.adjacency_list.size();
+        int edge_count = 0;
+        for (const auto& adj : g.adjacency_list) {
+            edge_count += adj.size();
+        }
+        edge_count /= 2; 
+        
+        file << "{\n";
+        file << "  \"vertices\": " << n << ",\n";
+        file << "  \"edges\": " << edge_count << ",\n";
+        file << "  \"adjacency_list\": {\n";
+        
+        for (int i = 0; i < n; ++i) {
+            file << "    \"" << i << "\": [";
+            for (size_t j = 0; j < g.adjacency_list[i].size(); ++j) {
+                file << g.adjacency_list[i][j];
+                if (j < g.adjacency_list[i].size() - 1) file << ", ";
+            }
+            file << "]";
+            if (i < n - 1) file << ",";
+            file << "\n";
+        }
+        
+        file << "  }\n";
+        file << "}\n";
+        
+        return true;
+    }
+    
+
+    static bool load_graphml(graph& g, const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return false;
+        
+        std::string content((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+        
+        
+        std::map<std::string, int> node_map;
+        std::vector<std::pair<int, int>> edges;
+        int node_count = 0;
+        
+        
+        size_t pos = 0;
+        while ((pos = content.find("<node id=\"", pos)) != std::string::npos) {
+            pos += 10;
+            size_t end = content.find("\"", pos);
+            std::string node_id = content.substr(pos, end - pos);
+            node_map[node_id] = node_count++;
+        }
+        
+        g.adjacency_list.resize(node_count);
+        
+     
+        pos = 0;
+        while ((pos = content.find("<edge source=\"", pos)) != std::string::npos) {
+            pos += 14;
+            size_t end = content.find("\"", pos);
+            std::string source = content.substr(pos, end - pos);
+            
+            pos = content.find("target=\"", pos) + 8;
+            end = content.find("\"", pos);
+            std::string target = content.substr(pos, end - pos);
+            
+            if (node_map.count(source) && node_map.count(target)) {
+                int u = node_map[source];
+                int v = node_map[target];
+                g.adjacency_list[u].push_back(v);
+                g.adjacency_list[v].push_back(u);
+            }
+        }
+        
+        return true;
+    }
+    
+    static bool save_graphml(const graph& g, const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) return false;
+        
+        file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        file << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\">\n";
+        file << "  <graph id=\"G\" edgedefault=\"undirected\">\n";
+        
+
+        int n = g.adjacency_list.size();
+        for (int i = 0; i < n; ++i) {
+            file << "    <node id=\"" << i << "\"/>\n";
+        }
+        
+ 
+        std::set<std::pair<int, int>> added_edges;
+        for (int i = 0; i < n; ++i) {
+            for (int neighbor : g.adjacency_list[i]) {
+                if (i < neighbor && added_edges.find({i, neighbor}) == added_edges.end()) {
+                    file << "    <edge source=\"" << i << "\" target=\"" << neighbor << "\"/>\n";
+                    added_edges.insert({i, neighbor});
+                }
+            }
+        }
+        
+        file << "  </graph>\n";
+        file << "</graphml>\n";
+        
+        return true;
+    }
+
+    static bool load_adjacency_matrix(graph& g, const std::string& filename) {
+        std::ifstream file(filename);
+        if (!file.is_open()) return false;
+        
+        std::vector<std::vector<int>> matrix;
+        std::string line;
+        
+        
+        while (std::getline(file, line) && line[0] == '#') {}
+        
+        
+        if (!line.empty()) {
+            std::istringstream iss(line);
+            std::vector<int> row;
+            int val;
+            while (iss >> val) {
+                row.push_back(val);
+            }
+            matrix.push_back(row);
+        }
+        
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::vector<int> row;
+            int val;
+            while (iss >> val) {
+                row.push_back(val);
+            }
+            if (!row.empty()) {
+                matrix.push_back(row);
+            }
+        }
+        
+        
+        int n = matrix.size();
+        g.adjacency_list.resize(n);
+        
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (matrix[i][j] == 1) {
+                    g.adjacency_list[i].push_back(j);
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    static bool save_adjacency_matrix(const graph& g, const std::string& filename) {
+        std::ofstream file(filename);
+        if (!file.is_open()) return false;
+        
+        int n = g.adjacency_list.size();
+        std::vector<std::vector<int>> matrix(n, std::vector<int>(n, 0));
+        
+      
+        for (int i = 0; i < n; ++i) {
+            for (int neighbor : g.adjacency_list[i]) {
+                matrix[i][neighbor] = 1;
+            }
+        }
+        
+        file << "# Adjacency Matrix " << n << "x" << n << "\n";
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                file << matrix[i][j];
+                if (j < n - 1) file << " ";
+            }
+            file << "\n";
+        }
+        
+        return true;
+    }
+};
+
+#endif 
